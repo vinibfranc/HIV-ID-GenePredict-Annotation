@@ -132,3 +132,154 @@ $ trim_galore --quality 30 --phred33 --fastqc_args "-t 4" --paired SRR8180079_1.
 Agora iremos visualizar os relatórios de qualidade (QC) das amostras após o controle de qualidade, acessíveis nos arquivos ```SRR8180079_1_val_1_fastqc.html``` e ```SRR8180079_2_val_2_fastqc.html``` gerados na pasta ```amostras/```.
 
 Os arquivos com os reads que passaram no controle de qualidade e podem ser usados nas etapas posteriores são: ```SRR8180079_1_val_1.fq``` e ```SRR8180079_2_val_2.fq```.
+
+### 4. Remoção de reads humanos
+
+Essa etapa irá requerer o download do genoma humano (GRCh38), a construção de uma hash table para o alinhamento e o alinhamento propriamente dito utilizando [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml). Por ser bastante demorado, irei disponibilizar os arquivos resultantes no [link](https://mega.nz/#F!8QYnWC7D!ZX6EkNGuJ5wDN838oWC45w).
+
+Baixar o arquivo ```SRR8180079.sam```, criar pasta em ```results/bowtie2/sam``` e copiar o arquivo para ela.
+
+<b>-----> Você não precisa executar os comandos abaixo, pois os arquivos já foram baixados! <-----</b>
+
+De qualquer forma, os passos para replicação dessa etapa são:
+
+#### 4.1. Download do genoma humano já indexado
+
+```
+$ cd ..
+$ mkdir -p "ref_dbs/human_db"
+$ cd "ref_dbs/human_db"
+$ wget ftp://ftp.ncbi.nlm.nih.gov/genomes/archive/old_genbank/Eukaryotes/vertebrates_mammals/Homo_sapiens/GRCh38/seqs_for_alignment_pipelines/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bowtie_index.tar.gz
+$ tar xvzf GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bowtie_index.tar.gz
+```
+
+#### 4.2. Alinhamento ao genoma humano
+
+```
+$ cd ../..
+$ mkdir -p results/bowtie2/sam
+$ bowtie2 --threads 4 -x ref_dbs/human_db/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bowtie_index -1 amostras/SRR8180079_1_val_1.fq -2 amostras/SRR8180079_2_val_2.fq -S results/bowtie2/sam/SRR8180079.sam
+```
+
+Será gerado o arquivo SAM, o qual armazena as sequências alinhadas à sequência de referência, bem como suas coordenadas genômicas.
+
+OBS.: É esperado que nada (ou praticamente nada) alinhe ao genoma humano, pois os reads humanos já haviam sido retirados antes da submissão ao SRA.
+
+<b>-----> Agora você pode voltar a executar os comandos normalmente! <-----</b>
+
+#### 4.3. Remoção de reads humanos
+
+Inicialmente, convertemos o arquivo SAM para um arquivo binário (BAM):
+
+```
+$ mkdir -p results/bowtie2/bam
+$ samtools view -bS results/bowtie2/sam/SRR8180079.sam > results/bowtie2/bam/SRR8180079.bam
+```
+
+Depois, pegamos os reads não mapeados ao genoma humano: 
+
+```
+$ mkdir -p results/bowtie2/unmapped
+$ samtools view -b -f 12 -F 256 results/bowtie2/bam/SRR8180079.bam > results/bowtie2/unmapped/SRR8180079.bam
+```
+
+Finalmente, transformamos o arquivo BAM para os dois arquivos FASTQ para fazer a classificação taxonômica posteriormente: 
+
+```
+$ mkdir -p results/bowtie2/fastq
+$ bedtools bamtofastq -i results/bowtie2/unmapped/SRR8180079.bam -fq results/bowtie2/fastq/SRR8180079_1.fastq -fq2 results/bowtie2/fastq/SRR8180079_2.fastq
+```
+
+### 5. Classificação taxonômica, filtragem e visualização de abundância microbiana
+
+Nessa etapa, os reads serão comparados contra um abrangente banco de dados utilizando o [Kraken2](https://ccb.jhu.edu/software/kraken2/), a fim de identificar os micro-organismos presentes neste metagenoma. 
+
+Essa etapa irá requerer o download de genomas de vírus, bactérias, fungos e parasitas do NCBI, a construção de uma hash table para o alinhamento e o alinhamento propriamente dito. Por ser bastante demorado, irei disponibilizar os arquivos resultantes no [link](https://mega.nz/#F!8QYnWC7D!ZX6EkNGuJ5wDN838oWC45w).
+
+Baixar os arquivos da pasta ```kraken2``` no link disponibilizado e inserir dentro da pasta ```results``` do seu computador.
+
+<b>-----> Você não precisa executar os comandos abaixo, pois os arquivos já foram baixados! <-----</b>
+
+De qualquer forma, os passos para replicação dessa etapa são:
+
+#### 5.1. Download dos genomas de referência de micro-organismos
+
+Inicialmente, fazemos o download dos genomas presentes no Kraken2:
+
+```
+$ kraken2-build --download-taxonomy --threads 4 --db ref_dbs/pathogens_db
+$ kraken2-build --download-library viral --threads 4 --db ref_dbs/pathogens_db
+$ kraken2-build --download-library archaea --threads 4 --db ref_dbs/pathogens_db
+$ kraken2-build --download-library fungi --threads 4 --db ref_dbs/pathogens_db
+$ kraken2-build --download-library protozoa --threads 4 --db ref_dbs/pathogens_db
+$ kraken2-build --download-library bacteria --threads 4 --db ref_dbs/pathogens_db
+```
+
+Depois, fazemos o download do genoma de outros micro-organismos que já foram identificados como causadores de neuroinfecções, mas não estavam no banco de dados anterior. Para isso rodamos o script ```download_extra.sh```:
+
+```
+$ chmod +x download_extra.sh
+$ ./download_extra.sh
+```
+
+#### 5.2. Construção do index
+
+```
+$ kraken2-build --build --threads 4 --max-db-size 13000000000 --db ref_dbs/pathogens_db
+```
+
+#### 5.3. Classificação taxonômica
+
+```
+$ DB_PATH="ref_dbs/pathogens_db"
+$ KRAKEN2="results/kraken2"
+$ mkdir -p $KRAKEN2
+$ mkdir -p $KRAKEN2/classified
+$ mkdir -p $KRAKEN2/unclassified
+$ mkdir -p $KRAKEN2/tabular
+$ mkdir -p $KRAKEN2/report
+$ kraken2 -db $DB_PATH --threads 4 \
+            --report $KRAKEN2/report/SRR8180079.kreport \
+            --classified-out $KRAKEN2/classified/SRR8180079#.fastq \
+            --unclassified-out $KRAKEN2/unclassified/SRR8180079#.fastq \
+            --output $KRAKEN2/tabular/SRR8180079.txt \
+            --paired results/bowtie2/fastq/SRR8180079_1.fastq results/bowtie2/fastq/SRR8180079_2.fastq
+```
+
+<b>-----> Agora você pode voltar a executar os comandos normalmente! <-----</b>
+
+Analise os resultados gerados em ```results/kraken2/classified```, ```results/kraken2/unclassified```, ```results/kraken2/report``` e ```results/kraken2/tabular```.
+
+#### 5.4. Filtragem de resultados para incluir somente patógenos de neuroinfecções
+
+Para reduzir nosso escopo de análise, podemos utilizar um script em Python para filtrar os resultados para considerar somente patógenos de neuroinfecções:
+
+```
+$ python3 filtrar_patogenos.py 
+```
+
+Analise os resultados gerados em ```results/kraken_genus_species_strains``` e ```kraken_pathogens```.
+
+#### 5.5. Estimativa de abundância (KRONA plot)
+
+Para saber a abundância total de micro-organismos nas amostras, podemos utilizar a ferramenta [KRONA](https://github.com/marbl/Krona):
+
+```
+$ mkdir -p ferramentas/Krona-master/KronaTools/taxonomy
+$ ferramentas/Krona-master/KronaTools/updateTaxonomy.sh
+$ mkdir -p results/krona
+$ ImportTaxonomy.pl -o results/krona/SRR8180079_krona.html -t 3 -s 4 results/kraken2/tabular/SRR8180079.txt
+```
+
+Agora podemos visualizar o gráfico gerado, que mostra a composição microbiana da amostra, no arquivo ```SRR8180079_krona.html```, localizado na pasta ```results/krona```.
+
+### 6. Montagem de metagenoma
+
+Para montar os reads em fragmentos maiores com o objetivo posterior de identificar genes virais, utilizamos a ferramenta [megahit](https://github.com/voutcn/megahit):
+
+```
+$ mkdir -p results/megahit
+$ megahit -1 results/bowtie2/fastq/SRR8180079_1.fastq -2 results/bowtie2/fastq/SRR8180079_2.fastq -o results/megahit/SRR8180079.out
+```
+
+O resultado final da montagem pode ser encontrado nos arquivos ```final.contings.fa```, dentro da pasta ```results/megahit```.
