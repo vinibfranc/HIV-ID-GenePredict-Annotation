@@ -20,7 +20,7 @@ sudo apt-get install -y fastqc
 # Instalação do cutadapt
 sudo apt-get -y install python3
 sudo apt install -y python3-pip
-pip3 install --user cutadapt
+sudo apt install -y cutadapt
 
 # Instalação do TrimGalore
 sudo apt-get -y install curl
@@ -47,6 +47,7 @@ sudo apt-get -y install samtools
 
 # Instalação do  BEDTOOLS
 sudo apt-get -y install bedtools
+sudo apt-get -y install seqtk
 
 # Instalação do megahit
 wget https://github.com/voutcn/megahit/releases/download/v1.2.8/MEGAHIT-1.2.8-Linux-x86_64-static.tar.gz
@@ -57,7 +58,11 @@ cd ../..
 
 # Dependências do Kraken2
 sudo apt-get -y install build-essential
-sudo apt-get -y install ncbi-blast+
+wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.10.0+-x64-linux.tar.gz
+tar zvxf ncbi-blast-2.10.0+-x64-linux.tar.gz
+cd ncbi-blast-2.10.0+
+echo 'PATH=$PATH:'$(pwd)/bin/ >> ~/.bashrc
+cd ..
 
 # Instalação do Kraken2
 wget https://github.com/DerrickWood/kraken2/archive/master.zip
@@ -70,7 +75,21 @@ cd ..
 
 # Instalação do KRONA
 wget https://github.com/marbl/Krona/archive/master.zip
-unzip master.zip.2
+unzip master.zip.1
 cd Krona-master/
 KronaTools/install.pl --prefix $1/Krona-master/KronaTools/
 echo 'PATH=$PATH:'$(pwd)/KronaTools/scripts/ >> ~/.bashrc
+cd ..
+
+# Instalação do Prokka
+sudo apt-get install libdatetime-perl libxml-simple-perl libdigest-md5-perl git default-jre bioperl
+sudo cpan Bio::Perl
+wget https://github.com/tseemann/prokka/archive/master.zip
+unzip master.zip
+cd prokka-master
+echo 'PATH=$PATH:'$(pwd)/bin/ >> ~/.bashrc
+# git clone https://github.com/tseemann/prokka.git prokka
+prokka --setupdb
+cd ..
+
+sudo apt install docker

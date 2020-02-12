@@ -19,8 +19,8 @@ Nosso tutorial irá conter as seguintes etapas:
 4. Remoção de reads humanos
 5. Classificação taxonômica, filtragem e visualização de abundância microbiana
 6. Montagem de metagenoma
-7. Predição gênica
-8. Anotação funcional de genes
+7. Predição gênica / proteica
+8. Anotação funcional
 
 ----------------------------------------------------------------
 
@@ -29,7 +29,12 @@ Nosso tutorial irá conter as seguintes etapas:
 Para realizar esse tutorial, você precisa ter um computador com o [Ubuntu 18.04](https://ubuntu.com/) instalado. Caso não tenha, você pode seguir os passos abaixo para usar uma máquina virtual:
 
 - Baixar e instalar a [VirtualBox](https://www.virtualbox.org/).
-- Baixar e carregar a imagem (ISO) do [Ubuntu 18.04](http://releases.ubuntu.com/18.04/) no VirtualBox. Para isso, você pode seguir este [tutorial](https://www.youtube.com/watch?v=zsqJhle7CXE).
+- Baixar e carregar a imagem (ISO) configurada do Ubuntu 18.04 (https://mega.nz/#!EYQhEISI!nNPEtzzITqjv9jYc8UgpkS7LbNmIebEUbPgN8HYgn_o) no VirtualBox. Depois, acesse o VirtualBox, vá em ```Arquivo > Importar appliance > Selecione o arquivo > Próximo > Modifique para 4 CPUs > Importar```. Inicie a máquina. Os dados para acesso à máquina são:
+
+```
+usuário: user
+senha: user2020
+```
 
 ## Pipeline
 
@@ -135,7 +140,7 @@ Os arquivos com os reads que passaram no controle de qualidade e podem ser usado
 
 ### 4. Remoção de reads humanos
 
-Essa etapa irá requerer o download do genoma humano (GRCh38), a construção de uma hash table para o alinhamento e o alinhamento propriamente dito utilizando [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml). Por ser bastante demorado, irei disponibilizar os arquivos resultantes no [link](https://mega.nz/#F!8QYnWC7D!ZX6EkNGuJ5wDN838oWC45w).
+Essa etapa irá requerer o download do genoma humano (GRCh38), a construção de uma hash table para o alinhamento e o alinhamento propriamente dito utilizando [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml). Por ser bastante demorado, irei disponibilizar os arquivos resultantes no [link](https://mega.nz/#!5QBBzAJS!FHwDeEIJh4ml6nNJziW9yZf9zdpVvJG536bC7vAr_gU).
 
 Baixar o arquivo ```SRR8180079.sam```, criar pasta em ```results/bowtie2/sam``` e copiar o arquivo para ela.
 
@@ -194,7 +199,7 @@ $ bedtools bamtofastq -i results/bowtie2/unmapped/SRR8180079.bam -fq results/bow
 
 Nessa etapa, os reads serão comparados contra um abrangente banco de dados utilizando o [Kraken2](https://ccb.jhu.edu/software/kraken2/), a fim de identificar os micro-organismos presentes neste metagenoma. 
 
-Essa etapa irá requerer o download de genomas de vírus, bactérias, fungos e parasitas do NCBI, a construção de uma hash table para o alinhamento e o alinhamento propriamente dito. Por ser bastante demorado, irei disponibilizar os arquivos resultantes no [link](https://mega.nz/#F!8QYnWC7D!ZX6EkNGuJ5wDN838oWC45w).
+Essa etapa irá requerer o download de genomas de vírus, bactérias, fungos e parasitas do NCBI, a construção de uma hash table para o alinhamento e o alinhamento propriamente dito. Por ser bastante demorado, irei disponibilizar os arquivos resultantes no [link](https://mega.nz/#F!pMYRQSZQ!7aV1MHnq0qQNub63W_hNkg).
 
 Baixar os arquivos da pasta ```kraken2``` no link disponibilizado e inserir dentro da pasta ```results``` do seu computador.
 
@@ -283,3 +288,121 @@ $ megahit -1 results/bowtie2/fastq/SRR8180079_1.fastq -2 results/bowtie2/fastq/S
 ```
 
 O resultado final da montagem pode ser encontrado nos arquivos ```final.contings.fa```, dentro da pasta ```results/megahit```.
+
+## 7. Predição gênica / proteica
+
+Inicialmente, vamos fazer a predição gênica utilizando o [Prokka](https://github.com/tseemann/prokka), uma ferramenta bastante utilizada para predição em procariotos, mas que também funciona bem para vírus.
+
+```
+$ prokka results/megahit/SRR8180079.out/final.contigs.fa --genus Lentivirus --kingdom Virus --norrna --notrna --metagenome --cpus 4 --outdir results/prokka_hiv
+```
+
+Podemos analisar os arquivos gerados em ```results/prokka_hiv```. Especialmente o arquivo ```PROKKA_02112020.tsv```, que mostra alguns genes virais detectados (linha 225 em diante).
+
+Para uma análise mais específica, podemos construir um banco de dados com as proteínas do HIV-1 e alinhar as nossas sequências. Isso acaba sendo fácil pois o HIV-1 conta com apenas 10 genes e 25 variantes de proteínas.
+
+Para isso, baixamos o arquivo ```hiv_proteins``` no [link](https://mega.nz/#!JdAjBKLD!5ExeJUBnV4fyCeiQxPjpq_rE4LHjBms7lH7ksxmT0nE).
+
+Depois, construímos nosso banco de dados:
+
+```
+$ makeblastdb -in ref_dbs/hiv_proteins.fasta -title hiv_proteins -dbtype prot -out ref_dbs/hiv_proteins
+```
+
+Agora, usamos o BLASTX (sequência de nucleotídeos traduzida para proteína), para buscar as correspondências baseado no metagenoma montado:
+
+```
+$ mkdir -p results/blastx
+$ blastx -query results/megahit/SRR8180079.out/final.contigs.fa -db ref_dbs/hiv_proteins -out results/blastx/SRR8180079.tab -evalue 1e-5 -outfmt 6
+```
+
+Para analisar os dados apresentados em ```results/blastx```, consideremos a seguinte tabela, que apresenta o significado das colunas em ordem:
+
+Field | Description
+| --- | --- |
+| qseqid | query (e.g., gene) sequence id
+| sseqid | subject (e.g., reference genome) sequence id
+| pident | percentage of identical matches
+| length | alignment length
+| mismatch | number of mismatches
+| gapopen | number of gap openings
+| qstart | start of alignment in query
+| qend | end of alignment in query
+| sstart | start of alignment in subject
+| send | end of alignment in subject
+| evalue | expect value
+| bitscore | bit score
+
+As proteínas encontradas na busca foram:
+
+```
+$ awk '{print $2}' results/blastx/SRR8180079.tab
+NP_789739.1
+NP_705927.1
+NP_789740.1
+NP_057849.4
+NP_705927.1
+NP_789740.1
+NP_057849.4
+NP_057849.4
+NP_057849.4
+NP_789740.1
+NP_705927.1
+NP_057856.1
+NP_057856.1
+NP_057850.1
+NP_789739.1
+NP_789739.1
+NP_705927.1
+NP_705927.1
+NP_789740.1
+NP_789740.1
+NP_057849.4
+NP_057849.4
+```
+
+Removendo as duplicatas ficamos com:
+
+```
+NP_789739.1
+NP_705927.1
+NP_789740.1
+NP_057849.4
+NP_057856.1
+NP_057850.1
+```
+
+Podemos procurar por elas no [NCBI protein](https://www.ncbi.nlm.nih.gov/protein) para ver qual sua função.
+
+
+## 8. Anotação funcional
+
+Para identificar o que essas proteínas que deram match com as nossas amostras fazem, pegamos as suas sequências de aminoácidos e submetemos ao site [Pannzer2](http://ekhidna2.biocenter.helsinki.fi/sanspanz/).
+
+Primeiro, baixamos o arquivo FASTA já preparado com essas sequências no [link](https://mega.nz/#!YVICmAaA!ukmf-MWlkuaVYzaf60HhvrKc0Zxzc6fABXziN8_D_pE). 
+
+Finalmente, acessamos o Pannzer (http://ekhidna2.biocenter.helsinki.fi/sanspanz/) e vamos na aba ```Annotate```. Carregamos nosso arquivos fasta ```hit_proteins.fasta```.
+
+Preencher na aba ```Optional inputs```.
+
+```
+Job title: Anotação proteínas HIV-1
+Scientific name of query species: Human immunodeficiency virus 1
+```
+
+Deixar marcada a opção ```Interactive``` em ```Select interactive or batch processing``` e clicar em ```Submit```.
+
+Analisar os resultados e dar ```Ctrl+S``` para salvar a página HTML onde desejar.
+
+A predição de genes nos reads de espécies de procariotos e eucariotos, bem como as vias (redes de interações entre moléculas) responsáveis pelo processo neuroinfeccioso também podem ser estudadas, mas isso é um tema para um próximo tutorial ;)
+
+----------------------------------------
+
+## Autores
+
+- Vinícius Bonetti Franceschi (vinibfranc@gmail.com)
+- Claudia Elizabeth Thompson (thompson.ufcspa@gmail.com)
+
+## Agradecimentos
+
+Agradecemos os autores do artigo [Chronic Meningitis Investigated via Metagenomic Next-Generation Sequencing](https://jamanetwork.com/journals/jamaneurology/fullarticle/2678438) pela publicação e disponibilização das amostras publicamente no SRA.
