@@ -377,11 +377,11 @@ Podemos procurar por elas no [NCBI protein](https://www.ncbi.nlm.nih.gov/protein
 
 ## 8. Anotação funcional
 
-Para identificar o que essas proteínas que deram match com as nossas amostras fazem, pegamos as suas sequências de aminoácidos e submetemos ao site [Pannzer2](http://ekhidna2.biocenter.helsinki.fi/sanspanz/).
+Para identificar o que essas proteínas que deram match com a nossa amostra fazem, pegamos as suas sequências de aminoácidos e submetemos ao site [Pannzer2](http://ekhidna2.biocenter.helsinki.fi/sanspanz/).
 
 Primeiro, baixamos o arquivo FASTA já preparado com essas sequências no [link](https://mega.nz/#!YVICmAaA!ukmf-MWlkuaVYzaf60HhvrKc0Zxzc6fABXziN8_D_pE). 
 
-Finalmente, acessamos o Pannzer (http://ekhidna2.biocenter.helsinki.fi/sanspanz/) e vamos na aba ```Annotate```. Carregamos nosso arquivos fasta ```hit_proteins.fasta```.
+Finalmente, acessamos o Pannzer (http://ekhidna2.biocenter.helsinki.fi/sanspanz/) e vamos na aba ```Annotate```. Carregamos nosso arquivo fasta chamado ```hit_proteins.fasta```.
 
 Preencher na aba ```Optional inputs```.
 
@@ -390,9 +390,9 @@ Job title: Anotação proteínas HIV-1
 Scientific name of query species: Human immunodeficiency virus 1
 ```
 
-Deixar marcada a opção ```Interactive``` em ```Select interactive or batch processing``` e clicar em ```Submit```.
+Deixar marcada a opção ```Interactive``` na aba ```Select interactive or batch processing``` e clicar em ```Submit```.
 
-Analisar os resultados e dar ```Ctrl+S``` para salvar a página HTML onde desejar.
+Analisar os resultados e dar ```Ctrl+S``` para salvar a página HTML.
 
 A predição de genes nos reads de espécies de procariotos e eucariotos, bem como as vias (redes de interações entre moléculas) responsáveis pelo processo neuroinfeccioso também podem ser estudadas, mas isso é um tema para um próximo tutorial ;)
 
