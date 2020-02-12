@@ -291,15 +291,8 @@ O resultado final da montagem pode ser encontrado nos arquivos ```final.contings
 
 ## 7. Predição gênica / proteica
 
-Inicialmente, vamos fazer a predição gênica utilizando o [Prokka](https://github.com/tseemann/prokka), uma ferramenta bastante utilizada para predição em procariotos, mas que também funciona bem para vírus.
-
-```
-$ prokka results/megahit/SRR8180079.out/final.contigs.fa --genus Lentivirus --kingdom Virus --norrna --notrna --metagenome --cpus 4 --outdir results/prokka_hiv
-```
-
-Podemos analisar os arquivos gerados em ```results/prokka_hiv```. Especialmente o arquivo ```PROKKA_02112020.tsv```, que mostra alguns genes virais detectados (linha 225 em diante).
-
-Para uma análise mais específica, podemos construir um banco de dados com as proteínas do HIV-1 e alinhar as nossas sequências. Isso acaba sendo fácil pois o HIV-1 conta com apenas 10 genes e 25 variantes de proteínas.
+Para uma análise mais específica, podemos construir um banco de dados com as proteínas do HIV
+-1 e alinhar as nossas sequências. Isso acaba sendo fácil pois o HIV-1 conta com apenas 10 genes e 25 variantes de proteínas.
 
 Para isso, baixamos o arquivo ```hiv_proteins``` no [link](https://mega.nz/#!JdAjBKLD!5ExeJUBnV4fyCeiQxPjpq_rE4LHjBms7lH7ksxmT0nE).
 
@@ -313,7 +306,7 @@ Agora, usamos o BLASTX (sequência de nucleotídeos traduzida para proteína), p
 
 ```
 $ mkdir -p results/blastx
-$ blastx -query results/megahit/SRR8180079.out/final.contigs.fa -db ref_dbs/hiv_proteins -out results/blastx/SRR8180079.tab -evalue 1e-5 -outfmt 6
+$ blastx -query results/megahit/SRR8180079.out/final.contigs.fa -db ref_dbs/hiv_proteins -out results/blastx/SRR8180079.tab -evalue 1e-5 -outfmt 6 -max_target_seqs 5 
 ```
 
 Para analisar os dados apresentados em ```results/blastx```, consideremos a seguinte tabela, que apresenta o significado das colunas em ordem:
@@ -393,6 +386,43 @@ Scientific name of query species: Human immunodeficiency virus 1
 Deixar marcada a opção ```Interactive``` na aba ```Select interactive or batch processing``` e clicar em ```Submit```.
 
 Analisar os resultados e dar ```Ctrl+S``` para salvar a página HTML.
+
+----------------------------------------
+
+## Análise opcional (tema de casa)
+
+A predição gênica também pode ser feita utilizando o [Prokka](https://github.com/tseemann/prokka), uma ferramenta bastante utilizada para predição em procariotos, mas que também funciona bem para vírus.
+
+Primeiro, instalamos ele e suas dependências: 
+
+```
+$ sudo apt-get install libdatetime-perl libxml-simple-perl libdigest-md5-perl git default-jre bioperl
+$ cd ferramentas
+$ wget https://github.com/tseemann/prokka/archive/master.zip
+$ unzip master.zip
+$ cd prokka-master
+$ echo 'PATH=$PATH:'$(pwd)/bin/ >> ~/.bashrc
+$ cd ..
+$ sudo apt remove ncbi-blast+
+$ wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.10.0+-x64-linux.tar.gz
+$ tar zvxf ncbi-blast-2.10.0+-x64-linux.tar.gz
+$ cd ncbi-blast-2.10.0+
+$ echo 'PATH=$PATH:'$(pwd)/bin/ >> ~/.bashrc
+$ source ~/.bashrc
+$ cd ../prokka-master
+$ prokka --setupdb
+```
+
+Depois, rodamos:
+
+```
+$ cd ../..
+$ prokka results/megahit/SRR8180079.out/final.contigs.fa --genus Lentivirus --kingdom Virus --norrna --notrna --metagenome --cpus 4 --outdir results/prokka_hiv
+```
+
+Podemos analisar os arquivos gerados em ```results/prokka_hiv```. Especialmente o arquivo ```PROKKA_02112020.tsv```, que mostra alguns genes virais detectados (linha 225 em diante).
+
+----------------------------------------
 
 A predição de genes nos reads de espécies de procariotos e eucariotos, bem como as vias (redes de interações entre moléculas) responsáveis pelo processo neuroinfeccioso também podem ser estudadas, mas isso é um tema para um próximo tutorial ;)
 

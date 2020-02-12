@@ -77,7 +77,7 @@ cd ..
 wget https://github.com/marbl/Krona/archive/master.zip
 unzip master.zip.1
 cd Krona-master/
-KronaTools/install.pl --prefix $1/Krona-master/KronaTools/
+KronaTools/install.pl --prefix KronaTools/ 
 echo 'PATH=$PATH:'$(pwd)/KronaTools/scripts/ >> ~/.bashrc
 cd ..
 
@@ -88,8 +88,5 @@ wget https://github.com/tseemann/prokka/archive/master.zip
 unzip master.zip
 cd prokka-master
 echo 'PATH=$PATH:'$(pwd)/bin/ >> ~/.bashrc
-# git clone https://github.com/tseemann/prokka.git prokka
 prokka --setupdb
 cd ..
-
-sudo apt install docker
